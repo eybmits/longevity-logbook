@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Minimal terminal-first longevity training logbook with editable strength programming and per-exercise progression.",
   "type": "module",
+  "bin": {
+    "gym": "./bin/gym.mjs"
+  },
   "scripts": {
     "cli": "node --experimental-strip-types src/cli.ts",
     "start": "node --experimental-strip-types src/cli.ts",

@@ -69,6 +69,22 @@ npm install
 npm run cli
 ```
 
+## One-Command Launch
+
+If you want to start the app from anywhere in the terminal with just:
+
+```bash
+gym
+```
+
+run this once inside the project:
+
+```bash
+npm link
+```
+
+After that, `gym` will be available globally on your machine and will launch this project directly.
+
 ## Commands
 
 ```bash
