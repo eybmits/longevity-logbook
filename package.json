@@ -1,0 +1,21 @@
+{
+  "name": "longevity-logbook",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Minimal terminal-first longevity training logbook with editable strength programming and per-exercise progression.",
+  "type": "module",
+  "scripts": {
+    "cli": "node --experimental-strip-types src/cli.ts",
+    "start": "node --experimental-strip-types src/cli.ts",
+    "build": "tsc --noEmit",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "typescript": "^5.9.3"
+  }
+}
