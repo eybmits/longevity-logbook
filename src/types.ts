@@ -1,4 +1,4 @@
-export type SessionType = 'zone2' | 'zone5' | 'strength';
+export type SessionType = 'zone2' | 'zone5' | 'strength' | 'weight';
 
 export interface ExerciseDefinition {
   id: string;
@@ -74,7 +74,16 @@ export interface StrengthSessionRecord {
   };
 }
 
-export type SessionRecord = Zone2SessionRecord | Zone5SessionRecord | StrengthSessionRecord;
+export interface WeightSessionRecord {
+  id: string;
+  type: 'weight';
+  completedAt: string;
+  payload: {
+    bodyweightKg: number;
+  };
+}
+
+export type SessionRecord = Zone2SessionRecord | Zone5SessionRecord | StrengthSessionRecord | WeightSessionRecord;
 
 export interface DayWindow {
   startDay: string;
@@ -87,6 +96,12 @@ export interface WindowSummary {
   strengthCount: number;
   completedGoals: number;
   completed: boolean;
+}
+
+export interface BodyweightSummary {
+  latestEntry: WeightSessionRecord | null;
+  previousEntry: WeightSessionRecord | null;
+  currentWindowCount: number;
 }
 
 export interface StrengthExerciseDraft {

@@ -1,12 +1,14 @@
 import { getProgram } from '../data/program.ts';
 import type {
   ArchiveEntry,
+  BodyweightSummary,
   DayWindow,
   ExerciseDefinition,
   SessionRecord,
   SessionType,
   StrengthExerciseDraft,
   StrengthSessionRecord,
+  WeightSessionRecord,
   WindowSummary,
   WorkoutDefinition,
 } from '../types.ts';
@@ -27,7 +29,7 @@ export function sortByCompletedAtDescending<T extends SessionRecord>(sessions: T
   return [...sessions].sort((left, right) => byCompletedAtAscending(right, left));
 }
 
-export function getSessionsInWindow(sessions: SessionRecord[], window: DayWindow): SessionRecord[] {
+export function getSessionsInWindow<T extends SessionRecord>(sessions: T[], window: DayWindow): T[] {
   return sessions.filter((session) => isDayInWindow(getDayKeyFromCompletedAt(session.completedAt), window));
 }
 
@@ -89,6 +91,26 @@ export function getStrengthSessions(sessions: SessionRecord[]): StrengthSessionR
   return sessions
     .filter((session): session is StrengthSessionRecord => session.type === 'strength')
     .sort(byCompletedAtAscending);
+}
+
+export function getWeightSessions(sessions: SessionRecord[]): WeightSessionRecord[] {
+  return sessions
+    .filter((session): session is WeightSessionRecord => session.type === 'weight')
+    .sort(byCompletedAtAscending);
+}
+
+export function summarizeBodyweight(sessions: SessionRecord[], currentWindow: DayWindow): BodyweightSummary {
+  const weightSessions = getWeightSessions(sessions);
+
+  return {
+    latestEntry: weightSessions.at(-1) ?? null,
+    previousEntry: weightSessions.at(-2) ?? null,
+    currentWindowCount: getSessionsInWindow(weightSessions, currentWindow).length,
+  };
+}
+
+export function formatBodyweight(bodyweightKg: number): string {
+  return `${bodyweightKg.toFixed(1)} kg`;
 }
 
 export function getWorkoutDefinition(workoutId: string): WorkoutDefinition {
@@ -203,6 +225,10 @@ export function formatSessionDetails(session: SessionRecord): string {
     return session.payload.protocolLabel;
   }
 
+  if (session.type === 'weight') {
+    return formatBodyweight(session.payload.bodyweightKg);
+  }
+
   const completedExercises = session.payload.exercises.filter((exercise) => exercise.completed).length;
   return `${session.payload.workoutLabel} | ${completedExercises}/${session.payload.exercises.length} done`;
 }
@@ -219,6 +245,10 @@ export function formatSessionType(type: SessionType): string {
 
   if (type === 'zone5') {
     return 'Zone 5';
+  }
+
+  if (type === 'weight') {
+    return 'Weight';
   }
 
   return 'Strength';

@@ -37,12 +37,14 @@ import {
   buildArchive,
   createStrengthDraft,
   createStrengthEditDraft,
+  formatBodyweight,
   formatSessionDetails,
   formatSessionType,
   getNextWorkoutDefinition,
   getSessionsInWindow,
   getWorkoutDefinition,
   sortByCompletedAtDescending,
+  summarizeBodyweight,
   summarizeWindow,
 } from './lib/training.ts';
 import type {
@@ -51,6 +53,7 @@ import type {
   WorkoutDefinition,
   StrengthExerciseDraft,
   StrengthSessionRecord,
+  WeightSessionRecord,
   Zone2SessionRecord,
   Zone5SessionRecord,
 } from './types.ts';
@@ -147,6 +150,10 @@ async function promptPositiveWeight(message: string, initialValue: number): Prom
   }));
 
   return Math.round(Number(result) * 10) / 10;
+}
+
+async function promptBodyweight(initialValue: number): Promise<number> {
+  return promptPositiveWeight('Bodyweight (kg)', initialValue);
 }
 
 async function pause(message = 'Back'): Promise<void> {
@@ -264,6 +271,23 @@ async function chooseExerciseIndex(workout: WorkoutDefinition, message: string):
   return Number(choice);
 }
 
+async function chooseStrengthWorkoutForLog(sessions: SessionRecord[]): Promise<WorkoutDefinition> {
+  const program = getProgram();
+  const suggestedWorkout = getNextWorkoutDefinition(sessions);
+  const choice = unwrapPrompt(await select({
+    message: 'Which strength session are you logging today?',
+    initialValue: suggestedWorkout.id,
+    options: program.strengthCycle.map((workout) => ({
+      label: workout.id === suggestedWorkout.id
+        ? `${workout.label}  ${workout.focus}  (suggested)`
+        : `${workout.label}  ${workout.focus}`,
+      value: workout.id,
+    })),
+  }));
+
+  return program.strengthCycle.find((workout) => workout.id === choice) ?? suggestedWorkout;
+}
+
 async function logZone2(sessions: SessionRecord[]): Promise<{ sessions: SessionRecord[]; message: string }> {
   const program = getProgram();
   const dayKey = await promptDayKey(getTodayDayKey());
@@ -326,6 +350,29 @@ async function logZone5(sessions: SessionRecord[]): Promise<{ sessions: SessionR
   };
 }
 
+async function logWeight(sessions: SessionRecord[]): Promise<{ sessions: SessionRecord[]; message: string }> {
+  const dayKey = await promptDayKey(getTodayDayKey());
+  const latestBodyweight = summarizeBodyweight(sessions, createCurrentWindow()).latestEntry?.payload.bodyweightKg ?? 80;
+  const bodyweightKg = await promptBodyweight(latestBodyweight);
+
+  const nextSession: WeightSessionRecord = {
+    id: randomUUID(),
+    type: 'weight',
+    completedAt: createCompletedAt(dayKey),
+    payload: {
+      bodyweightKg,
+    },
+  };
+
+  const nextSessions = upsertSession(sessions, nextSession);
+  await persistState(nextSessions);
+
+  return {
+    sessions: nextSessions,
+    message: `Logged bodyweight ${formatBodyweight(bodyweightKg)} for ${dayKey}.`,
+  };
+}
+
 async function promptStrengthExercises(exercises: StrengthExerciseDraft[]): Promise<StrengthExerciseDraft[]> {
   const updated: StrengthExerciseDraft[] = [];
 
@@ -353,11 +400,12 @@ async function promptStrengthExercises(exercises: StrengthExerciseDraft[]): Prom
 }
 
 async function logStrength(sessions: SessionRecord[]): Promise<{ sessions: SessionRecord[]; message: string }> {
-  const workout = getNextWorkoutDefinition(sessions);
+  const suggestedWorkout = getNextWorkoutDefinition(sessions);
   const dayKey = await promptDayKey(getTodayDayKey());
+  const workout = await chooseStrengthWorkoutForLog(sessions);
 
   clearAndRender([
-    pc.bold(pc.red('NEXT WORKOUT')),
+    pc.bold(pc.red(workout.id === suggestedWorkout.id ? 'SUGGESTED WORKOUT' : 'SELECTED WORKOUT')),
     `${workout.label}  ${pc.dim(workout.focus)}`,
   ].join('\n'));
 
@@ -688,6 +736,26 @@ async function editSession(sessions: SessionRecord[]): Promise<{ sessions: Sessi
     return null;
   }
 
+  if (target.type === 'weight') {
+    const dayKey = await promptDayKey(getDayKeyFromCompletedAt(target.completedAt));
+    const bodyweightKg = await promptBodyweight(target.payload.bodyweightKg);
+    const nextSession: WeightSessionRecord = {
+      ...target,
+      completedAt: createCompletedAt(dayKey),
+      payload: {
+        bodyweightKg,
+      },
+    };
+
+    const nextSessions = upsertSession(sessions, nextSession);
+    await persistState(nextSessions);
+
+    return {
+      sessions: nextSessions,
+      message: `Updated bodyweight to ${formatBodyweight(bodyweightKg)} on ${dayKey}.`,
+    };
+  }
+
   if (target.type === 'zone2') {
     const program = getProgram();
     const dayKey = await promptDayKey(getDayKeyFromCompletedAt(target.completedAt));
@@ -810,11 +878,13 @@ async function main(): Promise<void> {
     const currentWindow = createCurrentWindow();
     const currentSessions = sortByCompletedAtDescending(getSessionsInWindow(sessions, currentWindow));
     const summary = summarizeWindow(currentSessions);
+    const bodyweightSummary = summarizeBodyweight(sessions, currentWindow);
     const nextWorkout = getNextWorkoutDefinition(sessions);
 
     clearAndRender(renderDashboard({
       currentWindow,
       summary,
+      bodyweightSummary,
       currentSessions,
       nextWorkout,
       storagePath: getStoragePath(),
@@ -825,6 +895,7 @@ async function main(): Promise<void> {
     const action = unwrapPrompt(await select({
       message: 'Choose an action',
       options: [
+        { label: 'Log Weight', value: 'log-weight' },
         { label: 'Log Zone 2', value: 'log-zone2' },
         { label: 'Log Zone 5 / HIIT', value: 'log-zone5' },
         { label: 'Log Strength', value: 'log-strength' },
@@ -840,6 +911,13 @@ async function main(): Promise<void> {
 
     if (action === 'exit') {
       break;
+    }
+
+    if (action === 'log-weight') {
+      const result = await logWeight(sessions);
+      sessions = result.sessions;
+      flashMessage = result.message;
+      continue;
     }
 
     if (action === 'log-zone2') {

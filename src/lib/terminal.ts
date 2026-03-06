@@ -4,6 +4,7 @@ import { formatSessionDate, formatWindow } from './dates.ts';
 import { formatSessionDetails, formatSessionType, formatStrengthExerciseLine } from './training.ts';
 import type {
   ArchiveEntry,
+  BodyweightSummary,
   DayWindow,
   SessionRecord,
   StrengthSessionRecord,
@@ -31,6 +32,15 @@ function metricLine(label: string, current: number, target: number): string {
   return `${label.padEnd(16)} ${count.padEnd(8)} ${progressBar(current, target)}`;
 }
 
+function detailLine(label: string, value: string, muted?: string): string {
+  const suffix = muted ? `  ${pc.dim(muted)}` : '';
+  return `${label.padEnd(16)} ${pc.bold(value)}${suffix}`;
+}
+
+function formatSignedDelta(delta: number): string {
+  return `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} kg`;
+}
+
 function previewRows(sessions: SessionRecord[]): string[] {
   if (sessions.length === 0) {
     return [pc.dim('No sessions logged in the current window.')];
@@ -45,12 +55,13 @@ function previewRows(sessions: SessionRecord[]): string[] {
 export function renderDashboard(args: {
   currentWindow: DayWindow;
   summary: WindowSummary;
+  bodyweightSummary: BodyweightSummary;
   currentSessions: SessionRecord[];
   nextWorkout: WorkoutDefinition;
   storagePath: string;
   flashMessage?: string | null;
 }): string {
-  const { currentWindow, summary, currentSessions, nextWorkout, storagePath, flashMessage } = args;
+  const { currentWindow, summary, bodyweightSummary, currentSessions, nextWorkout, storagePath, flashMessage } = args;
   const program = getProgram();
   const lines: string[] = [];
 
@@ -69,6 +80,36 @@ export function renderDashboard(args: {
   lines.push(metricLine('Zone 2', summary.zone2Count, program.weeklyTargets.zone2));
   lines.push(metricLine('Zone 5 / HIIT', summary.zone5Count, program.weeklyTargets.zone5));
   lines.push(metricLine('Strength', summary.strengthCount, program.weeklyTargets.strength));
+  lines.push('');
+  lines.push(sectionTitle('Bodyweight'));
+  lines.push(divider());
+
+  if (!bodyweightSummary.latestEntry) {
+    lines.push(pc.dim('No bodyweight logged yet.'));
+  } else {
+    lines.push(
+      detailLine(
+        'Latest',
+        `${bodyweightSummary.latestEntry.payload.bodyweightKg.toFixed(1)} kg`,
+        formatSessionDate(bodyweightSummary.latestEntry.completedAt),
+      ),
+    );
+
+    if (bodyweightSummary.previousEntry) {
+      const delta = bodyweightSummary.latestEntry.payload.bodyweightKg - bodyweightSummary.previousEntry.payload.bodyweightKg;
+      lines.push(detailLine('Change', formatSignedDelta(delta), 'vs previous entry'));
+    } else {
+      lines.push(`${'Change'.padEnd(16)} ${pc.dim('First entry')}`);
+    }
+
+    lines.push(
+      detailLine(
+        'This week',
+        `${bodyweightSummary.currentWindowCount} entr${bodyweightSummary.currentWindowCount === 1 ? 'y' : 'ies'}`,
+      ),
+    );
+  }
+
   lines.push('');
   lines.push(sectionTitle('Next strength session'));
   lines.push(divider());
