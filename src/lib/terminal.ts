@@ -52,6 +52,18 @@ function previewRows(sessions: SessionRecord[]): string[] {
   });
 }
 
+function dailyRoutineRows(): string[] {
+  return [
+    pc.dim('10-15 k Steps per Day'),
+    pc.dim('Morning Walk'),
+    pc.dim('10 min Cardio pre & post Workout'),
+    pc.dim('Walk after Dinner'),
+    pc.dim('Evening Walk'),
+    pc.dim('Train like a fucking animal'),
+    pc.dim('As much movement as possible'),
+  ];
+}
+
 export function renderDashboard(args: {
   currentWindow: DayWindow;
   summary: WindowSummary;
@@ -114,6 +126,10 @@ export function renderDashboard(args: {
   lines.push(sectionTitle('Next strength session'));
   lines.push(divider());
   lines.push(`${pc.bold(nextWorkout.label)}  ${pc.dim(nextWorkout.focus)}`);
+  lines.push('');
+  lines.push(sectionTitle('Daily routine'));
+  lines.push(divider());
+  lines.push(...dailyRoutineRows());
   lines.push('');
   lines.push(sectionTitle('This week'));
   lines.push(divider());

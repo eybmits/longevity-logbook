@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { createDefaultProgram } from '../data/program.ts';
+import { createDefaultProgram, normalizeProgram } from '../data/program.ts';
 import type { LegacyLogbookFile, LogbookFile, ProgramDefinition, SessionRecord } from '../types.ts';
 
 const STORAGE_PATH = fileURLToPath(new URL('../../data/logbook.json', import.meta.url));
@@ -25,7 +25,7 @@ export async function loadLogbook(): Promise<{ sessions: SessionRecord[]; progra
     if (parsed.version === 2 && Array.isArray(parsed.sessions) && parsed.program) {
       return {
         sessions: parsed.sessions as SessionRecord[],
-        program: parsed.program as ProgramDefinition,
+        program: normalizeProgram(parsed.program as ProgramDefinition),
       };
     }
 

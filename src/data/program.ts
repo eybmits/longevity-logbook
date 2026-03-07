@@ -13,14 +13,14 @@ export const defaultProgram: ProgramDefinition = {
       description: '4 x 4 min hard / 3 min easy',
     },
     {
-      id: '6x1',
-      label: '6x1',
-      description: '6 x 1 min hard / 2 min easy',
+      id: '6x2',
+      label: '6x2',
+      description: '6 x 2 min hard / 2 min easy',
     },
     {
-      id: '10x30-30',
-      label: '10x30/30',
-      description: '10 x 30 sec hard / 30 sec easy',
+      id: '10x1',
+      label: '10x1',
+      description: '10 x 1 min hard / 1 min easy',
     },
   ],
   repRange: {
@@ -95,6 +95,13 @@ export function cloneProgram(program: ProgramDefinition): ProgramDefinition {
 
 export function createDefaultProgram(): ProgramDefinition {
   return cloneProgram(defaultProgram);
+}
+
+export function normalizeProgram(program: ProgramDefinition): ProgramDefinition {
+  return {
+    ...cloneProgram(program),
+    zone5Protocols: deepClone(defaultProgram.zone5Protocols),
+  };
 }
 
 export function getProgram(): ProgramDefinition {

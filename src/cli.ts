@@ -58,10 +58,16 @@ import type {
   Zone5SessionRecord,
 } from './types.ts';
 
+class PromptCancelledError extends Error {
+  constructor() {
+    super('Prompt cancelled.');
+    this.name = 'PromptCancelledError';
+  }
+}
+
 function unwrapPrompt<T>(value: T | symbol): T {
   if (isCancel(value)) {
-    cancel('Cancelled.');
-    process.exit(0);
+    throw new PromptCancelledError();
   }
 
   return value;
@@ -892,94 +898,103 @@ async function main(): Promise<void> {
     }));
     flashMessage = null;
 
-    const action = unwrapPrompt(await select({
-      message: 'Choose an action',
-      options: [
-        { label: 'Log Weight', value: 'log-weight' },
-        { label: 'Log Zone 2', value: 'log-zone2' },
-        { label: 'Log Zone 5 / HIIT', value: 'log-zone5' },
-        { label: 'Log Strength', value: 'log-strength' },
-        { label: 'View Strength Plan', value: 'view-strength-plan' },
-        { label: 'Edit Strength Plan', value: 'edit-strength-plan' },
-        { label: 'View Current Week', value: 'view-current' },
-        { label: 'View History', value: 'view-history' },
-        { label: 'Edit Session', value: 'edit' },
-        { label: 'Delete Session', value: 'delete' },
-        { label: 'Exit', value: 'exit' },
-      ],
-    }));
+    try {
+      const action = unwrapPrompt(await select({
+        message: 'Choose an action',
+        options: [
+          { label: 'Log Weight', value: 'log-weight' },
+          { label: 'Log Zone 2', value: 'log-zone2' },
+          { label: 'Log Zone 5 / HIIT', value: 'log-zone5' },
+          { label: 'Log Strength', value: 'log-strength' },
+          { label: 'View Strength Plan', value: 'view-strength-plan' },
+          { label: 'Edit Strength Plan', value: 'edit-strength-plan' },
+          { label: 'View Current Week', value: 'view-current' },
+          { label: 'View History', value: 'view-history' },
+          { label: 'Edit Session', value: 'edit' },
+          { label: 'Delete Session', value: 'delete' },
+          { label: 'Exit', value: 'exit' },
+        ],
+      }));
 
-    if (action === 'exit') {
-      break;
-    }
+      if (action === 'exit') {
+        break;
+      }
 
-    if (action === 'log-weight') {
-      const result = await logWeight(sessions);
-      sessions = result.sessions;
-      flashMessage = result.message;
-      continue;
-    }
-
-    if (action === 'log-zone2') {
-      const result = await logZone2(sessions);
-      sessions = result.sessions;
-      flashMessage = result.message;
-      continue;
-    }
-
-    if (action === 'log-zone5') {
-      const result = await logZone5(sessions);
-      sessions = result.sessions;
-      flashMessage = result.message;
-      continue;
-    }
-
-    if (action === 'log-strength') {
-      const result = await logStrength(sessions);
-      sessions = result.sessions;
-      flashMessage = result.message;
-      continue;
-    }
-
-    if (action === 'view-strength-plan') {
-      await viewStrengthPlan(sessions);
-      continue;
-    }
-
-    if (action === 'edit-strength-plan') {
-      const result = await editStrengthPlan(sessions);
-      if (result) {
+      if (action === 'log-weight') {
+        const result = await logWeight(sessions);
         sessions = result.sessions;
         flashMessage = result.message;
+        continue;
       }
-      continue;
-    }
 
-    if (action === 'view-current') {
-      await viewCurrentWeek(sessions);
-      continue;
-    }
-
-    if (action === 'view-history') {
-      await viewHistory(sessions);
-      continue;
-    }
-
-    if (action === 'edit') {
-      const result = await editSession(sessions);
-      if (result) {
+      if (action === 'log-zone2') {
+        const result = await logZone2(sessions);
         sessions = result.sessions;
         flashMessage = result.message;
+        continue;
       }
-      continue;
-    }
 
-    if (action === 'delete') {
-      const result = await deleteSession(sessions);
-      if (result) {
+      if (action === 'log-zone5') {
+        const result = await logZone5(sessions);
         sessions = result.sessions;
         flashMessage = result.message;
+        continue;
       }
+
+      if (action === 'log-strength') {
+        const result = await logStrength(sessions);
+        sessions = result.sessions;
+        flashMessage = result.message;
+        continue;
+      }
+
+      if (action === 'view-strength-plan') {
+        await viewStrengthPlan(sessions);
+        continue;
+      }
+
+      if (action === 'edit-strength-plan') {
+        const result = await editStrengthPlan(sessions);
+        if (result) {
+          sessions = result.sessions;
+          flashMessage = result.message;
+        }
+        continue;
+      }
+
+      if (action === 'view-current') {
+        await viewCurrentWeek(sessions);
+        continue;
+      }
+
+      if (action === 'view-history') {
+        await viewHistory(sessions);
+        continue;
+      }
+
+      if (action === 'edit') {
+        const result = await editSession(sessions);
+        if (result) {
+          sessions = result.sessions;
+          flashMessage = result.message;
+        }
+        continue;
+      }
+
+      if (action === 'delete') {
+        const result = await deleteSession(sessions);
+        if (result) {
+          sessions = result.sessions;
+          flashMessage = result.message;
+        }
+      }
+    } catch (error) {
+      if (error instanceof PromptCancelledError) {
+        flashMessage = 'Action cancelled.';
+        continue;
+      }
+
+      throw error;
     }
   }
 

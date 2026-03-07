@@ -131,6 +131,12 @@ The CLI currently supports:
 - `Delete Session`
 - `Exit`
 
+Zone 5 / HIIT currently offers:
+
+- `4x4`
+- `6x2`
+- `10x1`
+
 ## Project Structure
 
 ```text
